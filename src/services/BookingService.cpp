@@ -1,95 +1,68 @@
-#include "repositories/Repositories.h"
-#include "services/Services.h"
+#include "services/BookingService.h"
+#include <stdexcept>
+#include "repositories/BookingRepository.h"
+#include "repositories/LessonRepository.h"
+#include "repositories/SubscriptionRepository.h"
+#include "repositories/UserRepository.h"
 
-namespace SubscriptionService {
-
-std::vector<Subscription> getAll() { return SubscriptionRepository::getAll(); }
-
-std::vector<Subscription> getForClient(int clientId) {
-    return SubscriptionRepository::getByClient(clientId);
+namespace {
+// Абонемент клиента, который действует в день занятия (date — ГГГГ-ММ-ДД)
+Subscription* findSubscription(std::vector<Subscription>& subs, const std::string& date) {
+    for (Subscription& s : subs)
+        if (s.startDate <= date && date <= s.endDate) return &s;
+    return nullptr;
 }
-
-std::optional<Subscription> findValid(int clientId, const std::string& date) {
-    for (auto& s : SubscriptionRepository::getByClient(clientId))
-        if (s.startDate <= date && date <= s.endDate && s.visitsLeft > 0) return s;
-    return std::nullopt;
 }
-
-Subscription issue(int clientId, const std::string& type, const std::string& startDate,
-                   const std::string& endDate, int visits) {
-    auto client = UserRepository::getById(clientId);
-    if (!client || client->roleId != Role::Client) throw ServiceError("Клиент не найден");
-    if (type.find_first_not_of(' ') == std::string::npos)
-        throw ServiceError("Тип абонемента не может быть пустым");
-    if (!DateTime::isValidDate(startDate) || !DateTime::isValidDate(endDate))
-        throw ServiceError("Даты должны быть в формате ГГГГ-ММ-ДД");
-    if (endDate < startDate) throw ServiceError("Дата окончания раньше даты начала");
-    if (endDate < DateTime::today()) throw ServiceError("Срок абонемента уже истёк");
-    if (visits < 1 || visits > 365) throw ServiceError("Число посещений должно быть от 1 до 365");
-    int id = SubscriptionRepository::create(clientId, type, startDate, endDate, visits);
-    return *SubscriptionRepository::getById(id);
-}
-
-void remove(int subscriptionId) {
-    if (!SubscriptionRepository::getById(subscriptionId)) throw ServiceError("Абонемент не найден");
-    SubscriptionRepository::remove(subscriptionId);
-}
-
-}  // namespace SubscriptionService
 
 namespace BookingService {
 
-std::vector<Booking> getAll() { return BookingRepository::getAll(); }
-std::vector<Booking> getForClient(int clientId) { return BookingRepository::getByClient(clientId); }
-std::vector<Booking> getForLesson(int lessonId) { return BookingRepository::getByLesson(lessonId); }
-
-// Алгоритм записи на занятие (см. docs/diagrams/flow_booking.puml).
-Booking book(int clientId, int lessonId) {
-    auto client = UserRepository::getById(clientId);
-    if (!client || client->roleId != Role::Client)
-        throw ServiceError("Записываться на занятия может только клиент");
-
+void book(int clientId, int lessonId) {
     auto lesson = LessonRepository::getById(lessonId);
-    if (!lesson) throw ServiceError("Занятие не найдено");
-    if (lesson->startsAt <= DateTime::now()) throw ServiceError("Занятие уже прошло");
+    if (!lesson) throw std::runtime_error("Занятие не найдено");
 
-    if (BookingRepository::findActive(clientId, lessonId))
-        throw ServiceError("Вы уже записаны на это занятие");
+    for (const Booking& b : BookingRepository::getByClient(clientId))
+        if (b.lessonId == lessonId && b.status == BOOKING_ACTIVE)
+            throw std::runtime_error("Вы уже записаны на это занятие");
 
-    if (BookingRepository::countActiveByLesson(lessonId) >= lesson->capacity)
-        throw ServiceError("Свободных мест нет");
+    if (lesson->booked >= lesson->capacity) throw std::runtime_error("Свободных мест нет");
 
-    auto sub = SubscriptionService::findValid(clientId, lesson->startsAt.substr(0, 10));
-    if (!sub)
-        throw ServiceError("Нет действующего абонемента на дату занятия (или закончились посещения)");
+    auto subs = SubscriptionRepository::getByClient(clientId);
+    Subscription* sub = findSubscription(subs, lesson->startsAt.substr(0, 10));
+    if (!sub) throw std::runtime_error("Нет абонемента, действующего в день занятия");
+    if (sub->visitsLeft <= 0) throw std::runtime_error("На абонементе закончились посещения");
 
-    int bookingId = BookingRepository::create(clientId, lessonId);
+    BookingRepository::create(clientId, lessonId);
     SubscriptionRepository::updateVisits(sub->id, sub->visitsLeft - 1);
-    return *BookingRepository::getById(bookingId);
 }
 
-void cancel(int bookingId, int userId, bool byAdmin) {
+void cancel(int clientId, int bookingId) {
     auto booking = BookingRepository::getById(bookingId);
-    if (!booking) throw ServiceError("Запись не найдена");
-    if (!byAdmin && booking->clientId != userId) throw ServiceError("Это не ваша запись");
-    if (booking->statusId != BookingStatus::Active) throw ServiceError("Запись уже отменена");
+    if (!booking || booking->clientId != clientId) throw std::runtime_error("Запись не найдена");
+    if (booking->status != BOOKING_ACTIVE) throw std::runtime_error("Запись уже отменена");
 
-    long long minutesLeft =
-        DateTime::toMinutes(booking->lessonStartsAt) - DateTime::toMinutes(DateTime::now());
-    if (minutesLeft <= 0) throw ServiceError("Занятие уже началось или прошло");
-    if (!byAdmin && minutesLeft < kCancelDeadlineMinutes)
-        throw ServiceError("Отменить запись можно не позднее чем за 2 часа до начала");
+    BookingRepository::updateStatus(bookingId, BOOKING_CANCELLED);
 
-    BookingRepository::updateStatus(bookingId, BookingStatus::Cancelled);
-
-    // Возвращаем посещение на абонемент, действующий на дату занятия.
-    std::string date = booking->lessonStartsAt.substr(0, 10);
-    for (auto& s : SubscriptionRepository::getByClient(booking->clientId)) {
-        if (s.startDate <= date && date <= s.endDate) {
-            SubscriptionRepository::updateVisits(s.id, s.visitsLeft + 1);
-            break;
-        }
-    }
+    // возвращаем посещение на абонемент
+    auto subs = SubscriptionRepository::getByClient(clientId);
+    Subscription* sub = findSubscription(subs, booking->lessonTime.substr(0, 10));
+    if (sub) SubscriptionRepository::updateVisits(sub->id, sub->visitsLeft + 1);
 }
 
-}  // namespace BookingService
+std::vector<Booking> getClientBookings(int clientId) { return BookingRepository::getByClient(clientId); }
+
+std::vector<Subscription> getSubscriptions(int clientId) { return SubscriptionRepository::getByClient(clientId); }
+
+void addSubscription(int clientId, const std::string& type, const std::string& startDate,
+                     const std::string& endDate, int visits) {
+    auto client = UserRepository::getById(clientId);
+    if (!client || client->role != ROLE_CLIENT) throw std::runtime_error("Клиент не найден");
+    if (type.empty()) throw std::runtime_error("Тип абонемента не может быть пустым");
+    if (startDate.size() != 10 || endDate.size() != 10)
+        throw std::runtime_error("Даты должны быть в формате ГГГГ-ММ-ДД");
+    if (endDate < startDate) throw std::runtime_error("Дата окончания раньше даты начала");
+    if (visits <= 0) throw std::runtime_error("Количество посещений должно быть больше 0");
+
+    SubscriptionRepository::create(Subscription{0, clientId, type, startDate, endDate, visits});
+}
+
+}

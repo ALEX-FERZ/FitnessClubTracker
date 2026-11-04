@@ -1,55 +1,30 @@
 lessons:
   - id: 1
     title: "Силовая тренировка"
-    startsAt: "2026-11-20 18:00"
-    capacity: 10
+    startTime: "2026-10-20 18:00:00"
+    maxPlaces: 10
     trainer:
-      id: 2
+      id: 3
       fullName: "Сидоров Алексей Петрович"
       phone: "+79003334455"
-    bookedCount: 1
     clients:
       - "Иванов Иван Иванович"
   - id: 2
     title: "Кроссфит"
-    startsAt: "2026-11-21 19:00"
-    capacity: 2
+    startTime: "2026-10-21 19:00:00"
+    maxPlaces: 8
     trainer:
-      id: 2
+      id: 3
       fullName: "Сидоров Алексей Петрович"
       phone: "+79003334455"
-    bookedCount: 2
     clients:
       - "Петрова Анна Сергеевна"
-      - "Смирнов Олег Дмитриевич"
   - id: 3
     title: "Йога для начинающих"
-    startsAt: "2026-11-22 10:00"
-    capacity: 15
+    startTime: "2026-10-22 10:00:00"
+    maxPlaces: 15
     trainer:
-      id: 3
+      id: 4
       fullName: "Кузнецова Мария Олеговна"
       phone: "+79004445566"
-    bookedCount: 1
-    clients:
-      - "Смирнов Олег Дмитриевич"
-  - id: 4
-    title: "Пилатес"
-    startsAt: "2026-12-05 11:00"
-    capacity: 12
-    trainer:
-      id: 3
-      fullName: "Кузнецова Мария Олеговна"
-      phone: "+79004445566"
-    bookedCount: 0
-    clients: []
-  - id: 5
-    title: "Функциональный тренинг"
-    startsAt: "2026-12-10 18:30"
-    capacity: 8
-    trainer:
-      id: 2
-      fullName: "Сидоров Алексей Петрович"
-      phone: "+79003334455"
-    bookedCount: 0
     clients: []

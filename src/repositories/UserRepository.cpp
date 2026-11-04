@@ -1,87 +1,78 @@
+#include "repositories/UserRepository.h"
 #include "database/Database.h"
-#include "repositories/Repositories.h"
+
+namespace {
+const std::string SELECT_USER = "SELECT UserID, login, passwordHash, role, fullName, phone FROM User ";
+
+User map(sqlite3_stmt* stmt) {
+    return User{sqlite3_column_int(stmt, 0), columnText(stmt, 1), columnText(stmt, 2),
+                sqlite3_column_int(stmt, 3), columnText(stmt, 4), columnText(stmt, 5)};
+}
+}
 
 namespace UserRepository {
 
-namespace {
-const char* kSelect =
-    "SELECT u.user_id, u.login, u.password_hash, u.role_id, u.full_name, u.phone, r.name "
-    "FROM users u JOIN roles r ON r.role_id = u.role_id ";
-
-User map(const Statement& st) {
-    User u;
-    u.id = st.columnInt(0);
-    u.login = st.columnText(1);
-    u.passwordHash = st.columnText(2);
-    u.roleId = st.columnInt(3);
-    u.fullName = st.columnText(4);
-    u.phone = st.columnOptText(5);
-    u.roleName = st.columnText(6);
-    return u;
-}
-
-std::vector<User> fetchAll(Statement& st) {
-    std::vector<User> result;
-    while (st.step()) result.push_back(map(st));
-    return result;
-}
-}  // namespace
-
-int create(const std::string& login, const std::string& passwordHash, int roleId,
-           const std::string& fullName, const std::optional<std::string>& phone) {
-    auto& db = Database::instance();
-    Statement st(db.handle(),
-                 "INSERT INTO users (login, password_hash, role_id, full_name, phone) "
-                 "VALUES (?, ?, ?, ?, ?)");
-    st.bind(1, login).bind(2, passwordHash).bind(3, roleId).bind(4, fullName).bind(5, phone);
-    st.step();
-    return static_cast<int>(db.lastInsertId());
+int create(const User& user) {
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db,
+        "INSERT INTO User (login, passwordHash, role, fullName, phone) VALUES (?, ?, ?, ?, ?)",
+        -1, &stmt, nullptr);
+    sqlite3_bind_text(stmt, 1, user.login.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, user.passwordHash.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 3, user.role);
+    sqlite3_bind_text(stmt, 4, user.fullName.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 5, user.phone.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return (int)sqlite3_last_insert_rowid(db);
 }
 
 std::optional<User> getById(int id) {
-    Statement st(Database::instance().handle(), std::string(kSelect) + "WHERE u.user_id = ?");
-    st.bind(1, id);
-    if (st.step()) return map(st);
-    return std::nullopt;
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, (SELECT_USER + "WHERE UserID = ?").c_str(), -1, &stmt, nullptr);
+    sqlite3_bind_int(stmt, 1, id);
+    std::optional<User> result;
+    if (sqlite3_step(stmt) == SQLITE_ROW) result = map(stmt);
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 std::optional<User> getByLogin(const std::string& login) {
-    Statement st(Database::instance().handle(),
-                 std::string(kSelect) + "WHERE lower(u.login) = lower(?)");
-    st.bind(1, login);
-    if (st.step()) return map(st);
-    return std::nullopt;
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, (SELECT_USER + "WHERE login = ?").c_str(), -1, &stmt, nullptr);
+    sqlite3_bind_text(stmt, 1, login.c_str(), -1, SQLITE_TRANSIENT);
+    std::optional<User> result;
+    if (sqlite3_step(stmt) == SQLITE_ROW) result = map(stmt);
+    sqlite3_finalize(stmt);
+    return result;
 }
 
-std::vector<User> getAll() {
-    Statement st(Database::instance().handle(), std::string(kSelect) + "ORDER BY u.user_id");
-    return fetchAll(st);
-}
-
-std::vector<User> getByRole(int roleId) {
-    Statement st(Database::instance().handle(),
-                 std::string(kSelect) + "WHERE u.role_id = ? ORDER BY u.full_name");
-    st.bind(1, roleId);
-    return fetchAll(st);
+std::vector<User> getByRole(int role) {
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, (SELECT_USER + "WHERE role = ? ORDER BY fullName").c_str(), -1, &stmt, nullptr);
+    sqlite3_bind_int(stmt, 1, role);
+    std::vector<User> result;
+    while (sqlite3_step(stmt) == SQLITE_ROW) result.push_back(map(stmt));
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 void update(const User& user) {
-    Statement st(Database::instance().handle(),
-                 "UPDATE users SET login = ?, password_hash = ?, role_id = ?, full_name = ?, "
-                 "phone = ? WHERE user_id = ?");
-    st.bind(1, user.login)
-        .bind(2, user.passwordHash)
-        .bind(3, user.roleId)
-        .bind(4, user.fullName)
-        .bind(5, user.phone)
-        .bind(6, user.id);
-    st.step();
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, "UPDATE User SET fullName = ?, phone = ? WHERE UserID = ?", -1, &stmt, nullptr);
+    sqlite3_bind_text(stmt, 1, user.fullName.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, user.phone.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 3, user.id);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
 }
 
 void remove(int id) {
-    Statement st(Database::instance().handle(), "DELETE FROM users WHERE user_id = ?");
-    st.bind(1, id);
-    st.step();
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, "DELETE FROM User WHERE UserID = ?", -1, &stmt, nullptr);
+    sqlite3_bind_int(stmt, 1, id);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
 }
 
-}  // namespace UserRepository
+}

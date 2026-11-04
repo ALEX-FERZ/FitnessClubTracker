@@ -1,119 +1,263 @@
 #include "export/Exporter.h"
-
 #include <filesystem>
 #include <fstream>
-#include <stdexcept>
-
+#include <iostream>
+#include <vector>
 #include "database/Database.h"
 
 namespace {
 
-void writeFile(const std::filesystem::path& path, const std::string& content) {
-    std::ofstream out(path, std::ios::binary);
-    if (!out) throw std::runtime_error("Не удалось записать файл " + path.string());
-    out << content;
-}
+struct Value {
+    std::string text;
+    bool isNumber = false;
+    bool isNull = false;
+    bool isList = false;
+    std::vector<std::string> list;
+};
 
-DataNode columnValue(const Statement& st, int col) {
-    switch (st.columnType(col)) {
-        case SQLITE_INTEGER: return DataNode::integer(st.columnInt(col));
-        case SQLITE_FLOAT: return DataNode::real(st.columnDouble(col));
-        case SQLITE_NULL: return DataNode::null();
-        default: return DataNode::text(st.columnText(col));
+// Поле записи: простое значение или вложенный объект (group) со своими полями
+struct Field {
+    std::string name;
+    Value value;
+    bool isGroup = false;
+    std::vector<std::pair<std::string, Value>> children;
+};
+
+using Row = std::vector<Field>;
+
+std::vector<std::string> split(const std::string& s) {
+    std::vector<std::string> parts;
+    std::string current;
+    for (char c : s) {
+        if (c == ';') { parts.push_back(current); current.clear(); }
+        else current += c;
     }
+    if (!current.empty()) parts.push_back(current);
+    return parts;
 }
 
-}  // namespace
-
-namespace Exporter {
-
-DataNode queryToNodes(const std::string& sql) {
-    Statement st(Database::instance().handle(), sql);
-    DataNode rows = DataNode::array();
-    while (st.step()) {
-        DataNode row = DataNode::object();
-        for (int col = 0; col < st.columnCount(); ++col) {
-            std::string name = st.columnName(col);
-            bool isArray = name.size() > 2 && name.compare(name.size() - 2, 2, "[]") == 0;
-            if (isArray) name.resize(name.size() - 2);
-
-            // "a.b.c" -> row[a][b][c]
-            DataNode* target = &row;
-            std::size_t pos;
-            while ((pos = name.find('.')) != std::string::npos) {
-                DataNode& child = (*target)[name.substr(0, pos)];
-                if (child.type != DataNode::Type::Object) child = DataNode::object();
-                target = &child;
-                name = name.substr(pos + 1);
+// Выполняем запрос и превращаем каждую строку результата в Row
+std::vector<Row> loadRows(const std::string& sql) {
+    std::vector<Row> rows;
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cout << "Ошибка SQL: " << sqlite3_errmsg(db) << "\n";
+        return rows;
+    }
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        Row row;
+        for (int i = 0; i < sqlite3_column_count(stmt); i++) {
+            std::string name = sqlite3_column_name(stmt, i);
+            int type = sqlite3_column_type(stmt, i);
+            Value v;
+            v.text = columnText(stmt, i);
+            v.isNull = type == SQLITE_NULL;
+            v.isNumber = type == SQLITE_INTEGER || type == SQLITE_FLOAT;
+            if (name.size() > 2 && name.substr(name.size() - 2) == "[]") {
+                name = name.substr(0, name.size() - 2);
+                v.isList = true;
+                v.list = split(v.text);
             }
 
-            if (isArray) {
-                DataNode arr = DataNode::array();
-                if (!st.isNull(col)) {
-                    std::string list = st.columnText(col), item;
-                    std::size_t start = 0, sep;
-                    do {
-                        sep = list.find(';', start);
-                        item = list.substr(start, sep == std::string::npos ? std::string::npos
-                                                                           : sep - start);
-                        if (!item.empty()) arr.items.push_back(DataNode::text(item));
-                        start = sep + 1;
-                    } while (sep != std::string::npos);
-                }
-                (*target)[name] = arr;
+            size_t dot = name.find('.');
+            if (dot == std::string::npos) {
+                row.push_back({name, v});
             } else {
-                (*target)[name] = columnValue(st, col);
+                std::string group = name.substr(0, dot);
+                if (row.empty() || !row.back().isGroup || row.back().name != group)
+                    row.push_back({group, {}, true, {}});
+                row.back().children.push_back({name.substr(dot + 1), v});
             }
         }
-        rows.items.push_back(row);
+        rows.push_back(row);
     }
+    sqlite3_finalize(stmt);
     return rows;
 }
 
-std::vector<std::string> exportQuery(const std::string& sql, const std::string& collection,
-                                     const std::string& outDir) {
-    namespace fs = std::filesystem;
-    fs::create_directories(outDir);  // создаём папку out, если её нет
-
-    DataNode rows = queryToNodes(sql);
-    DataNode root = DataNode::object();
-    root[collection] = rows;
-
-    std::vector<std::pair<std::string, std::string>> files = {
-        {"data.json", Serializer::toJson(root)},
-        {"data.csv", Serializer::toCsv(rows)},
-        {"data.xml", Serializer::toXml(rows, collection)},
-        {"data.yaml", Serializer::toYaml(root)},
-    };
-    std::vector<std::string> created;
-    for (auto& [name, content] : files) {
-        fs::path path = fs::path(outDir) / name;
-        writeFile(path, content);
-        created.push_back(path.generic_string());
+std::string quote(const std::string& s) {
+    std::string out = "\"";
+    for (char c : s) {
+        if (c == '"' || c == '\\') out += '\\';
+        out += c;
     }
-    return created;
+    return out + "\"";
 }
 
-std::vector<std::string> exportLessons(const std::string& outDir) {
-    // Таблица lessons связана с users (тренер, 1:N) и через bookings с клиентами (M:N).
-    const std::string sql = R"SQL(
-        SELECT l.lesson_id    AS "id",
-               l.title        AS "title",
-               l.starts_at    AS "startsAt",
-               l.capacity     AS "capacity",
-               t.user_id      AS "trainer.id",
-               t.full_name    AS "trainer.fullName",
-               t.phone        AS "trainer.phone",
-               (SELECT COUNT(*) FROM bookings b
-                 WHERE b.lesson_id = l.lesson_id AND b.status_id = 1) AS "bookedCount",
-               (SELECT group_concat(c.full_name, ';')
-                  FROM bookings b JOIN users c ON c.user_id = b.client_id
-                 WHERE b.lesson_id = l.lesson_id AND b.status_id = 1) AS "clients[]"
-        FROM lessons l
-        JOIN users t ON t.user_id = l.trainer_id
-        ORDER BY l.starts_at
-    )SQL";
-    return exportQuery(sql, "lessons", outDir);
+// ---------- JSON ----------
+std::string jsonValue(const Value& v) {
+    if (v.isList) {
+        std::string out = "[";
+        for (size_t i = 0; i < v.list.size(); i++) out += (i ? ", " : "") + quote(v.list[i]);
+        return out + "]";
+    }
+    if (v.isNull) return "null";
+    if (v.isNumber) return v.text;
+    return quote(v.text);
 }
 
-}  // namespace Exporter
+std::string toJson(const std::vector<Row>& rows, const std::string& table) {
+    std::string out = "{\n  \"" + table + "\": [\n";
+    for (size_t r = 0; r < rows.size(); r++) {
+        out += "    {\n";
+        for (size_t f = 0; f < rows[r].size(); f++) {
+            const Field& field = rows[r][f];
+            out += "      " + quote(field.name) + ": ";
+            if (field.isGroup) {
+                out += "{";
+                for (size_t c = 0; c < field.children.size(); c++)
+                    out += (c ? ", " : " ") + quote(field.children[c].first) + ": " + jsonValue(field.children[c].second);
+                out += " }";
+            } else {
+                out += jsonValue(field.value);
+            }
+            out += (f + 1 < rows[r].size() ? ",\n" : "\n");
+        }
+        out += (r + 1 < rows.size() ? "    },\n" : "    }\n");
+    }
+    return out + "  ]\n}\n";
+}
+
+// ---------- CSV ----------
+std::string csvCell(const Value& v) {
+    std::string s;
+    if (v.isList) {
+        for (size_t i = 0; i < v.list.size(); i++) s += (i ? ";" : "") + v.list[i];
+    } else {
+        s = v.text;
+    }
+    if (s.find_first_of(",;\"") == std::string::npos) return s;
+    std::string out = "\"";
+    for (char c : s) out += (c == '"') ? std::string("\"\"") : std::string(1, c);
+    return out + "\"";
+}
+
+std::string toCsv(const std::vector<Row>& rows) {
+    std::string out = "\xEF\xBB\xBF";  // BOM, чтобы Excel правильно показал русские буквы
+    if (rows.empty()) return out;
+    std::string header;
+    for (const Field& f : rows[0]) {
+        if (f.isGroup)
+            for (auto& c : f.children) header += (header.empty() ? "" : ",") + f.name + "." + c.first;
+        else
+            header += (header.empty() ? "" : ",") + f.name;
+    }
+    out += header + "\n";
+    for (const Row& row : rows) {
+        std::string line;
+        bool first = true;
+        for (const Field& f : row) {
+            if (f.isGroup) {
+                for (auto& c : f.children) { line += (first ? "" : ",") + csvCell(c.second); first = false; }
+            } else {
+                line += (first ? "" : ",") + csvCell(f.value);
+                first = false;
+            }
+        }
+        out += line + "\n";
+    }
+    return out;
+}
+
+// ---------- XML ----------
+std::string xmlEscape(const std::string& s) {
+    std::string out;
+    for (char c : s) {
+        if (c == '&') out += "&amp;";
+        else if (c == '<') out += "&lt;";
+        else if (c == '>') out += "&gt;";
+        else out += c;
+    }
+    return out;
+}
+
+std::string xmlValue(const std::string& name, const Value& v, const std::string& indent) {
+    if (v.isList) {
+        // clients -> client
+        std::string item = name.size() > 1 && name.back() == 's' ? name.substr(0, name.size() - 1) : "item";
+        std::string out = indent + "<" + name + ">\n";
+        for (auto& s : v.list) out += indent + "  <" + item + ">" + xmlEscape(s) + "</" + item + ">\n";
+        return out + indent + "</" + name + ">\n";
+    }
+    if (v.isNull) return indent + "<" + name + "/>\n";
+    return indent + "<" + name + ">" + xmlEscape(v.text) + "</" + name + ">\n";
+}
+
+std::string toXml(const std::vector<Row>& rows, const std::string& table) {
+    std::string item = table.size() > 1 && table.back() == 's' ? table.substr(0, table.size() - 1) : "item";
+    std::string out = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<" + table + ">\n";
+    for (const Row& row : rows) {
+        out += "  <" + item + ">\n";
+        for (const Field& f : row) {
+            if (f.isGroup) {
+                out += "    <" + f.name + ">\n";
+                for (auto& c : f.children) out += xmlValue(c.first, c.second, "      ");
+                out += "    </" + f.name + ">\n";
+            } else {
+                out += xmlValue(f.name, f.value, "    ");
+            }
+        }
+        out += "  </" + item + ">\n";
+    }
+    return out + "</" + table + ">\n";
+}
+
+// ---------- YAML ----------
+std::string yamlValue(const std::string& name, const Value& v, const std::string& indent) {
+    if (v.isList) {
+        if (v.list.empty()) return indent + name + ": []\n";
+        std::string out = indent + name + ":\n";
+        for (auto& s : v.list) out += indent + "  - " + quote(s) + "\n";
+        return out;
+    }
+    if (v.isNull) return indent + name + ": null\n";
+    return indent + name + ": " + (v.isNumber ? v.text : quote(v.text)) + "\n";
+}
+
+std::string toYaml(const std::vector<Row>& rows, const std::string& table) {
+    std::string out = table + ":\n";
+    for (const Row& row : rows) {
+        std::string block;
+        for (const Field& f : row) {
+            if (f.isGroup) {
+                block += "    " + f.name + ":\n";
+                for (auto& c : f.children) block += yamlValue(c.first, c.second, "      ");
+            } else {
+                block += yamlValue(f.name, f.value, "    ");
+            }
+        }
+        out += "  - " + block.substr(4);  // первое поле записи идёт после "- "
+    }
+    return out;
+}
+
+void save(const std::string& path, const std::string& text) {
+    std::ofstream file(path, std::ios::binary);
+    file << text;
+    std::cout << "Создан файл " << path << "\n";
+}
+
+}
+
+namespace Exporter {
+
+void exportQuery(const std::string& sql, const std::string& tableName, const std::string& outDir) {
+    std::filesystem::create_directories(outDir);  // создаём папку out, если её нет
+    std::vector<Row> rows = loadRows(sql);
+    save(outDir + "/data.json", toJson(rows, tableName));
+    save(outDir + "/data.csv", toCsv(rows));
+    save(outDir + "/data.xml", toXml(rows, tableName));
+    save(outDir + "/data.yaml", toYaml(rows, tableName));
+}
+
+void exportLessons(const std::string& outDir) {
+    exportQuery(
+        "SELECT l.LessonID AS id, l.title AS title, l.startTime AS startTime, l.maxPlaces AS maxPlaces, "
+        "       u.UserID AS \"trainer.id\", u.fullName AS \"trainer.fullName\", u.phone AS \"trainer.phone\", "
+        "       (SELECT group_concat(c.fullName, ';') FROM Booking b JOIN User c ON c.UserID = b.ClientID "
+        "         WHERE b.LessonID = l.LessonID AND b.status = 1) AS \"clients[]\" "
+        "FROM Lesson l JOIN User u ON u.UserID = l.TrainerID ORDER BY l.startTime",
+        "lessons", outDir);
+}
+
+}

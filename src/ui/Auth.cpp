@@ -1,35 +1,30 @@
-#include "services/Services.h"
-#include "ui/Console.h"
-#include "ui/Menu.h"
+#include "ui/Auth.h"
+#include <iostream>
+#include <stdexcept>
+#include "services/AuthService.h"
+#include "ui/Input.h"
 
-namespace AuthUi {
-
-std::optional<User> login() {
-    Console::title("Вход в систему");
-    std::string loginValue = Console::readLine("Логин: ");
-    std::string password = Console::readLine("Пароль: ");
-    auto user = AuthService::authenticate(loginValue, password);
+std::optional<User> loginMenu() {
+    std::string login = readLine("Логин: ");
+    std::string password = readLine("Пароль: ");
+    auto user = AuthService::login(login, password);
     if (!user) {
-        Console::error("Неверный логин или пароль");
+        std::cout << "Неверный логин или пароль\n";
         return std::nullopt;
     }
-    Console::success("Добро пожаловать, " + user->fullName + " (" + user->roleName + ")");
+    std::cout << "Здравствуйте, " << user->fullName << "!\n";
     return user;
 }
 
-void registerClient() {
-    Console::title("Регистрация клиента");
-    std::string loginValue = Console::readLine("Логин (латиница, цифры, _): ");
-    std::string password = Console::readLine("Пароль (от 6 символов): ");
-    std::string fullName = Console::readLine("ФИО: ");
-    std::string phone = Console::readLine("Телефон (необязательно, +7...): ");
+void registerMenu() {
+    std::string login = readLine("Логин: ");
+    std::string password = readLine("Пароль: ");
+    std::string fullName = readLine("ФИО: ");
+    std::string phone = readLine("Телефон: ");
     try {
-        User user = AuthService::registerClient(loginValue, password, fullName, phone);
-        Console::success("Клиент " + user.login + " зарегистрирован. Теперь войдите в систему.");
-        Console::success("Чтобы записываться на занятия, оформите абонемент у администратора.");
-    } catch (const ServiceError& e) {
-        Console::error(e.what());
+        AuthService::registerClient(login, password, fullName, phone);
+        std::cout << "Регистрация прошла успешно, теперь войдите в систему\n";
+    } catch (const std::exception& e) {
+        std::cout << "Ошибка: " << e.what() << "\n";
     }
 }
-
-}  // namespace AuthUi
