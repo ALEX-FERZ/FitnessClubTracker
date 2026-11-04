@@ -16,14 +16,15 @@ std::optional<User> login(const std::string& login, const std::string& password)
     return std::nullopt;
 }
 
-User registerClient(const std::string& login, const std::string& password,
-                    const std::string& fullName, const std::string& phone) {
+User registerUser(const std::string& login, const std::string& password, int role,
+                  const std::string& fullName, const std::string& phone) {
+    if (role != ROLE_CLIENT && role != ROLE_ADMIN) throw std::runtime_error("Неизвестная роль");
     if (login.empty()) throw std::runtime_error("Логин не может быть пустым");
     if (password.size() < 4) throw std::runtime_error("Пароль должен быть не короче 4 символов");
     if (fullName.empty()) throw std::runtime_error("ФИО не может быть пустым");
     if (UserRepository::getByLogin(login)) throw std::runtime_error("Такой логин уже занят");
 
-    User user{0, login, hashPassword(password), ROLE_CLIENT, fullName, phone};
+    User user{0, login, hashPassword(password), role, fullName, phone};
     user.id = UserRepository::create(user);
     return user;
 }
