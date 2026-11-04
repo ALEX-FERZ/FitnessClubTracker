@@ -1,0 +1,53 @@
+@startuml architecture
+' Многослойная архитектура приложения
+skinparam componentStyle rectangle
+
+package "Presentation Layer (src/ui)" {
+    [Console] as console
+    [Auth] as auth
+    [Menu\n(администратор, тренер, клиент)] as menu
+}
+
+package "Business Logic Layer (src/services)" {
+    [AuthService\nUserService] as authS
+    [LessonService] as lessonS
+    [SubscriptionService\nBookingService] as bookingS
+}
+
+package "Data Access Layer (src/repositories)" {
+    [UserRepository] as userR
+    [LessonRepository] as lessonR
+    [SubscriptionRepository] as subR
+    [BookingRepository] as bookR
+    [DictionaryRepository] as dictR
+}
+
+package "Export (src/export)" {
+    [Exporter\nJSON / CSV / XML / YAML] as exporter
+}
+
+database "SQLite\ndatabase/database.db" as db
+folder "out/" as out
+
+menu --> auth
+menu --> console
+auth --> authS
+menu --> lessonS
+menu --> bookingS
+menu --> exporter
+
+authS --> userR
+lessonS --> lessonR
+lessonS --> userR
+bookingS --> bookR
+bookingS --> subR
+bookingS --> lessonR
+
+userR --> db
+lessonR --> db
+subR --> db
+bookR --> db
+dictR --> db
+exporter --> db
+exporter --> out
+@enduml

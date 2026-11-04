@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lessons>
+  <lesson>
+    <id>1</id>
+    <title>Силовая тренировка</title>
+    <startsAt>2026-11-20 18:00</startsAt>
+    <capacity>10</capacity>
+    <trainer>
+      <id>2</id>
+      <fullName>Сидоров Алексей Петрович</fullName>
+      <phone>+79003334455</phone>
+    </trainer>
+    <bookedCount>1</bookedCount>
+    <clients>
+      <client>Иванов Иван Иванович</client>
+    </clients>
+  </lesson>
+  <lesson>
+    <id>2</id>
+    <title>Кроссфит</title>
+    <startsAt>2026-11-21 19:00</startsAt>
+    <capacity>2</capacity>
+    <trainer>
+      <id>2</id>
+      <fullName>Сидоров Алексей Петрович</fullName>
+      <phone>+79003334455</phone>
+    </trainer>
+    <bookedCount>2</bookedCount>
+    <clients>
+      <client>Петрова Анна Сергеевна</client>
+      <client>Смирнов Олег Дмитриевич</client>
+    </clients>
+  </lesson>
+  <lesson>
+    <id>3</id>
+    <title>Йога для начинающих</title>
+    <startsAt>2026-11-22 10:00</startsAt>
+    <capacity>15</capacity>
+    <trainer>
+      <id>3</id>
+      <fullName>Кузнецова Мария Олеговна</fullName>
+      <phone>+79004445566</phone>
+    </trainer>
+    <bookedCount>1</bookedCount>
+    <clients>
+      <client>Смирнов Олег Дмитриевич</client>
+    </clients>
+  </lesson>
+  <lesson>
+    <id>4</id>
+    <title>Пилатес</title>
+    <startsAt>2026-12-05 11:00</startsAt>
+    <capacity>12</capacity>
+    <trainer>
+      <id>3</id>
+      <fullName>Кузнецова Мария Олеговна</fullName>
+      <phone>+79004445566</phone>
+    </trainer>
+    <bookedCount>0</bookedCount>
+    <clients/>
+  </lesson>
+  <lesson>
+    <id>5</id>
+    <title>Функциональный тренинг</title>
+    <startsAt>2026-12-10 18:30</startsAt>
+    <capacity>8</capacity>
+    <trainer>
+      <id>2</id>
+      <fullName>Сидоров Алексей Петрович</fullName>
+      <phone>+79003334455</phone>
+    </trainer>
+    <bookedCount>0</bookedCount>
+    <clients/>
+  </lesson>
+</lessons>

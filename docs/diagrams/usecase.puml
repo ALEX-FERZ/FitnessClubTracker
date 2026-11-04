@@ -1,47 +1,56 @@
-@startuml Usecase
+@startuml usecase
 left to right direction
 skinparam packageStyle rectangle
+skinparam actorStyle awesome
 
-actor "Администратор" as admin
 actor "Клиент" as client
+actor "Тренер" as trainer
+actor "Администратор" as admin
 
-rectangle "Система" {
-    ' Прецеденты для Администратора
-    usecase "Регистрация" as reg_admin
-    usecase "Вход в систему" as login_admin
-    usecase "База клиентов" as db_clients
-    usecase "База тренеров" as db_trainers
-    usecase "Просмотр\nрасписания" as view_schedule_admin
-    
-    usecase "Регистрация клиентов\n(оформление\nабонементов)" as reg_clients
-    usecase "Регистрация тренеров" as reg_trainers
-    usecase "Изменение\nрасписания" as edit_schedule
-    
-    ' Прецеденты для Клиента
-    usecase "Регистрация" as reg_client
-    usecase "Вход в систему" as login_client
-    usecase "Просмотр\nрасписания" as view_schedule_client
-    usecase "Запись на занятие" as book_lesson
-    usecase "Проверка\nсвободных мест" as check_places
+rectangle "Fitness Club Tracker" {
+    usecase "Регистрация" as UC_Register
+    usecase "Вход в систему" as UC_Login
+    usecase "Просмотр расписания\n(фильтр по дате и тренеру)" as UC_Schedule
+
+    usecase "Запись на занятие" as UC_Book
+    usecase "Проверка свободных мест" as UC_CheckPlaces
+    usecase "Проверка абонемента" as UC_CheckSub
+    usecase "Отмена записи" as UC_Cancel
+    usecase "Просмотр своих записей\nи абонемента" as UC_MyData
+
+    usecase "Просмотр своих занятий\nи списка записавшихся" as UC_TrainerLessons
+
+    usecase "Управление расписанием\n(добавить, изменить, удалить)" as UC_EditSchedule
+    usecase "Проверка накладок\nу тренера" as UC_CheckConflict
+    usecase "Управление тренерами" as UC_Trainers
+    usecase "Управление клиентами" as UC_Clients
+    usecase "Оформление абонемента" as UC_IssueSub
+    usecase "Просмотр всех записей" as UC_AllBookings
+    usecase "Экспорт расписания\n(JSON, CSV, XML, YAML)" as UC_Export
 }
 
-' Связи для Администратора
-admin - reg_admin
-reg_admin - login_admin
-login_admin - db_clients
-login_admin - db_trainers
-login_admin - view_schedule_admin
+client --> UC_Register
+client --> UC_Login
+client --> UC_Schedule
+client --> UC_Book
+client --> UC_Cancel
+client --> UC_MyData
 
-db_clients - reg_clients
-db_trainers - reg_trainers
-view_schedule_admin - edit_schedule
+trainer --> UC_Login
+trainer --> UC_Schedule
+trainer --> UC_TrainerLessons
 
-' Связи для Клиента
-client - reg_client
-reg_client - login_client
-login_client - view_schedule_client
-login_client - book_lesson
+admin --> UC_Login
+admin --> UC_Schedule
+admin --> UC_EditSchedule
+admin --> UC_Trainers
+admin --> UC_Clients
+admin --> UC_IssueSub
+admin --> UC_AllBookings
+admin --> UC_Export
 
-book_lesson .> check_places : <<Include>>
-
+UC_Book ..> UC_CheckPlaces : <<include>>
+UC_Book ..> UC_CheckSub : <<include>>
+UC_EditSchedule ..> UC_CheckConflict : <<include>>
+UC_IssueSub ..> UC_Clients : <<extend>>
 @enduml

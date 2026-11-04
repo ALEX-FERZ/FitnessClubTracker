@@ -1,1 +1,13 @@
-\n```\n*.exe\n*.o\nbuild/\n```\n
+# Сборка
+build/
+*.exe
+*.o
+
+# Локальная база данных (создаётся автоматически из database/schema.sql)
+database/*.db
+database/*.db-journal
+
+# Временные файлы редактора
+tempCodeRunnerFile.*
+.vscode/
+.idea/
