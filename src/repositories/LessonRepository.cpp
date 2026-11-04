@@ -6,7 +6,7 @@ namespace {
 const std::string SELECT_LESSON =
     "SELECT l.LessonID, l.TrainerID, l.title, l.startTime, l.maxPlaces, u.fullName, "
     "(SELECT COUNT(*) FROM Booking b WHERE b.LessonID = l.LessonID AND b.status = 1) "
-    "FROM Lesson l JOIN User u ON u.UserID = l.TrainerID ";
+    "FROM Lesson l JOIN Trainer u ON u.TrainerID = l.TrainerID ";
 
 Lesson map(sqlite3_stmt* stmt) {
     return Lesson{sqlite3_column_int(stmt, 0), sqlite3_column_int(stmt, 1), columnText(stmt, 2),

@@ -2,7 +2,7 @@
 #include <stdexcept>
 #include "repositories/BookingRepository.h"
 #include "repositories/LessonRepository.h"
-#include "repositories/UserRepository.h"
+#include "repositories/TrainerRepository.h"
 
 namespace {
 // Проверка данных занятия: название, дата вида 2026-10-20 18:00, количество мест
@@ -18,6 +18,13 @@ namespace LessonService {
 
 std::vector<Lesson> getSchedule() { return LessonRepository::getAll(); }
 
+std::vector<Trainer> getTrainers() { return TrainerRepository::getAll(); }
+
+void addTrainer(const std::string& fullName, const std::string& phone) {
+    if (fullName.empty()) throw std::runtime_error("ФИО не может быть пустым");
+    TrainerRepository::create(Trainer{0, fullName, phone});
+}
+
 Lesson getById(int lessonId) {
     auto lesson = LessonRepository::getById(lessonId);
     if (!lesson) throw std::runtime_error("Занятие не найдено");
@@ -25,8 +32,7 @@ Lesson getById(int lessonId) {
 }
 
 void addLesson(int trainerId, const std::string& title, const std::string& startsAt, int capacity) {
-    auto trainer = UserRepository::getById(trainerId);
-    if (!trainer || trainer->role != ROLE_TRAINER) throw std::runtime_error("Тренер не найден");
+    if (!TrainerRepository::getById(trainerId)) throw std::runtime_error("Тренер не найден");
     check(title, startsAt, capacity);
 
     // один тренер не может вести два занятия в одно и то же время

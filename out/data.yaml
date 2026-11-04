@@ -4,7 +4,7 @@ lessons:
     startTime: "2026-10-20 18:00:00"
     maxPlaces: 10
     trainer:
-      id: 3
+      id: 1
       fullName: "Сидоров Алексей Петрович"
       phone: "+79003334455"
     clients:
@@ -14,7 +14,7 @@ lessons:
     startTime: "2026-10-21 19:00:00"
     maxPlaces: 8
     trainer:
-      id: 3
+      id: 1
       fullName: "Сидоров Алексей Петрович"
       phone: "+79003334455"
     clients:
@@ -24,7 +24,7 @@ lessons:
     startTime: "2026-10-22 10:00:00"
     maxPlaces: 15
     trainer:
-      id: 4
+      id: 2
       fullName: "Кузнецова Мария Олеговна"
       phone: "+79004445566"
     clients: []

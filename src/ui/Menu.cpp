@@ -30,6 +30,12 @@ void printClients() {
         std::cout << "[" << u.id << "] " << u.fullName << "  " << u.phone << "\n";
 }
 
+void printTrainers() {
+    std::cout << "\n--- Тренеры ---\n";
+    for (const Trainer& t : LessonService::getTrainers())
+        std::cout << "[" << t.id << "] " << t.fullName << "  " << t.phone << "\n";
+}
+
 void printSubscriptions(int clientId) {
     auto subs = BookingService::getSubscriptions(clientId);
     if (subs.empty()) std::cout << "Абонементов нет\n";
@@ -50,7 +56,7 @@ void mainMenu() {
 
         if (choice == "1") {
             auto user = loginMenu();
-            if (user && user->role == ROLE_TRAINER) trainerMenu(*user);
+            if (user && user->role == ROLE_ADMIN) adminMenu(*user);
             else if (user) clientMenu(*user);
         } else if (choice == "2") {
             registerMenu();
@@ -60,17 +66,20 @@ void mainMenu() {
     }
 }
 
-void trainerMenu(const User& user) {
+void adminMenu(const User& user) {
     while (true) {
-        std::cout << "\n===== Тренер (" << user.login << ") =====\n"
+        std::cout << "\n===== Администратор (" << user.login << ") =====\n"
                      "1. Расписание\n"
                      "2. Добавить занятие\n"
                      "3. Изменить занятие\n"
                      "4. Удалить занятие\n"
                      "5. Кто записан на занятие\n"
-                     "6. Клиенты и их абонементы\n"
+                     "6. База клиентов и их абонементы\n"
                      "7. Оформить абонемент клиенту\n"
                      "8. Экспорт расписания (JSON, CSV, XML, YAML)\n"
+                     "9. База тренеров\n"
+                     "10. Добавить тренера\n"
+                     "11. Зарегистрировать клиента\n"
                      "0. Выход\n";
         std::string choice = readLine("Выберите действие: ");
 
@@ -78,10 +87,12 @@ void trainerMenu(const User& user) {
             if (choice == "1") {
                 printSchedule();
             } else if (choice == "2") {
+                printTrainers();
+                int trainerId = readInt("Номер тренера: ");
                 std::string title = readLine("Название: ");
                 std::string time = readLine("Дата и время (ГГГГ-ММ-ДД ЧЧ:ММ): ");
                 int places = readInt("Количество мест: ");
-                LessonService::addLesson(user.id, title, time, places);
+                LessonService::addLesson(trainerId, title, time, places);
                 std::cout << "Занятие добавлено\n";
             } else if (choice == "3") {
                 printSchedule();
@@ -113,6 +124,15 @@ void trainerMenu(const User& user) {
                 std::cout << "Абонемент оформлен\n";
             } else if (choice == "8") {
                 Exporter::exportLessons("out");
+            } else if (choice == "9") {
+                printTrainers();
+            } else if (choice == "10") {
+                std::string name = readLine("ФИО тренера: ");
+                std::string phone = readLine("Телефон: ");
+                LessonService::addTrainer(name, phone);
+                std::cout << "Тренер добавлен\n";
+            } else if (choice == "11") {
+                registerMenu();
             } else if (choice == "0") {
                 break;
             }
@@ -128,8 +148,7 @@ void clientMenu(const User& user) {
                      "1. Расписание\n"
                      "2. Записаться на занятие\n"
                      "3. Мои записи\n"
-                     "4. Отменить запись\n"
-                     "5. Мои абонементы\n"
+                     "4. Мои абонементы\n"
                      "0. Выход\n";
         std::string choice = readLine("Выберите действие: ");
 
@@ -143,10 +162,6 @@ void clientMenu(const User& user) {
             } else if (choice == "3") {
                 printBookings(BookingService::getClientBookings(user.id));
             } else if (choice == "4") {
-                printBookings(BookingService::getClientBookings(user.id));
-                BookingService::cancel(user.id, readInt("Номер записи: "));
-                std::cout << "Запись отменена\n";
-            } else if (choice == "5") {
                 printSubscriptions(user.id);
             } else if (choice == "0") {
                 break;

@@ -38,22 +38,7 @@ int create(int clientId, int lessonId) {
     return (int)sqlite3_last_insert_rowid(db);
 }
 
-std::optional<Booking> getById(int id) {
-    auto list = getWhere("WHERE b.BookingID = ?", id);
-    if (list.empty()) return std::nullopt;
-    return list[0];
-}
-
 std::vector<Booking> getByClient(int clientId) { return getWhere("WHERE b.ClientID = ?", clientId); }
 std::vector<Booking> getByLesson(int lessonId) { return getWhere("WHERE b.LessonID = ?", lessonId); }
-
-void updateStatus(int id, int status) {
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, "UPDATE Booking SET status = ? WHERE BookingID = ?", -1, &stmt, nullptr);
-    sqlite3_bind_int(stmt, 1, status);
-    sqlite3_bind_int(stmt, 2, id);
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-}
 
 }

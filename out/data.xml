@@ -6,7 +6,7 @@
     <startTime>2026-10-20 18:00:00</startTime>
     <maxPlaces>10</maxPlaces>
     <trainer>
-      <id>3</id>
+      <id>1</id>
       <fullName>Сидоров Алексей Петрович</fullName>
       <phone>+79003334455</phone>
     </trainer>
@@ -20,7 +20,7 @@
     <startTime>2026-10-21 19:00:00</startTime>
     <maxPlaces>8</maxPlaces>
     <trainer>
-      <id>3</id>
+      <id>1</id>
       <fullName>Сидоров Алексей Петрович</fullName>
       <phone>+79003334455</phone>
     </trainer>
@@ -34,7 +34,7 @@
     <startTime>2026-10-22 10:00:00</startTime>
     <maxPlaces>15</maxPlaces>
     <trainer>
-      <id>4</id>
+      <id>2</id>
       <fullName>Кузнецова Мария Олеговна</fullName>
       <phone>+79004445566</phone>
     </trainer>

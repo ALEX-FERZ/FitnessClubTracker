@@ -35,19 +35,6 @@ void book(int clientId, int lessonId) {
     SubscriptionRepository::updateVisits(sub->id, sub->visitsLeft - 1);
 }
 
-void cancel(int clientId, int bookingId) {
-    auto booking = BookingRepository::getById(bookingId);
-    if (!booking || booking->clientId != clientId) throw std::runtime_error("Запись не найдена");
-    if (booking->status != BOOKING_ACTIVE) throw std::runtime_error("Запись уже отменена");
-
-    BookingRepository::updateStatus(bookingId, BOOKING_CANCELLED);
-
-    // возвращаем посещение на абонемент
-    auto subs = SubscriptionRepository::getByClient(clientId);
-    Subscription* sub = findSubscription(subs, booking->lessonTime.substr(0, 10));
-    if (sub) SubscriptionRepository::updateVisits(sub->id, sub->visitsLeft + 1);
-}
-
 std::vector<Booking> getClientBookings(int clientId) { return BookingRepository::getByClient(clientId); }
 
 std::vector<Subscription> getSubscriptions(int clientId) { return SubscriptionRepository::getByClient(clientId); }

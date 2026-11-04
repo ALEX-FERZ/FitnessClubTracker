@@ -7,8 +7,6 @@
 namespace BookingService {
 // Запись клиента на занятие (с проверкой мест и абонемента)
 void book(int clientId, int lessonId);
-// Отмена своей записи клиентом
-void cancel(int clientId, int bookingId);
 std::vector<Booking> getClientBookings(int clientId);
 
 std::vector<Subscription> getSubscriptions(int clientId);

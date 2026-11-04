@@ -253,10 +253,10 @@ void exportQuery(const std::string& sql, const std::string& tableName, const std
 void exportLessons(const std::string& outDir) {
     exportQuery(
         "SELECT l.LessonID AS id, l.title AS title, l.startTime AS startTime, l.maxPlaces AS maxPlaces, "
-        "       u.UserID AS \"trainer.id\", u.fullName AS \"trainer.fullName\", u.phone AS \"trainer.phone\", "
+        "       u.TrainerID AS \"trainer.id\", u.fullName AS \"trainer.fullName\", u.phone AS \"trainer.phone\", "
         "       (SELECT group_concat(c.fullName, ';') FROM Booking b JOIN User c ON c.UserID = b.ClientID "
         "         WHERE b.LessonID = l.LessonID AND b.status = 1) AS \"clients[]\" "
-        "FROM Lesson l JOIN User u ON u.UserID = l.TrainerID ORDER BY l.startTime",
+        "FROM Lesson l JOIN Trainer u ON u.TrainerID = l.TrainerID ORDER BY l.startTime",
         "lessons", outDir);
 }
 
