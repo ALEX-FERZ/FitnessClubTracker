@@ -1,6 +1,7 @@
 #include "ui/Menu.h"
 #include <iostream>
 #include <stdexcept>
+#include "constants/Constants.h"
 #include "export/Exporter.h"
 #include "repositories/UserRepository.h"
 #include "services/BookingService.h"
@@ -123,7 +124,7 @@ void adminMenu(const User& user) {
                 BookingService::addSubscription(clientId, type, start, end, visits);
                 std::cout << "Абонемент оформлен\n";
             } else if (choice == "8") {
-                Exporter::exportLessons("out");
+                Exporter::exportLessons(OUT_DIR);
             } else if (choice == "9") {
                 printTrainers();
             } else if (choice == "10") {

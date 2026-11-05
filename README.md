@@ -112,6 +112,7 @@ fitness-club-tracker/
 ├── out/                    # результат экспорта (JSON, CSV, XML, YAML)
 ├── src/
 │   ├── main.cpp            # точка входа в программу
+│   ├── constants/          # константы проекта (роли, статусы, пути к файлам)
 │   ├── database/           # подключение к SQLite
 │   ├── models/             # модели данных
 │   ├── repositories/       # SQL-запросы (CRUD)

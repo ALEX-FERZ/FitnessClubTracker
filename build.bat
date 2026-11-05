@@ -8,6 +8,6 @@ if not exist build\sqlite3.o gcc -c -O2 third_party\sqlite\sqlite3.c -o build\sq
 
 g++ -std=c++17 -Isrc -Ithird_party\sqlite ^
     src\main.cpp src\database\*.cpp src\repositories\*.cpp src\services\*.cpp ^
-    src\ui\*.cpp src\export\*.cpp build\sqlite3.o -static -o build\fitness_club.exe
+    src\ui\*.cpp src\export\*.cpp src\constants\*.cpp build\sqlite3.o -static -o build\fitness_club.exe
 
 if %errorlevel% == 0 echo Готово: build\fitness_club.exe

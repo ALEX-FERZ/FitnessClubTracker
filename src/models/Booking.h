@@ -1,9 +1,6 @@
 #pragma once
 #include <string>
-
-// status: 0 - отменена, 1 - активна
-const int BOOKING_CANCELLED = 0;
-const int BOOKING_ACTIVE = 1;
+#include "constants/Constants.h"
 
 struct Booking {
     int id;

@@ -1,4 +1,5 @@
 #include <iostream>
+#include "constants/Constants.h"
 #include "database/Database.h"
 #include "ui/Input.h"
 #include "ui/Menu.h"
@@ -7,7 +8,7 @@
 int main() {
     setupConsole();
 
-    if (!openDatabase("database/database.db", "database/database.sql")) return 1;
+    if (!openDatabase(DB_PATH, SQL_PATH)) return 1;
 
     mainMenu();
 

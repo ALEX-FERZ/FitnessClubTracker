@@ -1,5 +1,6 @@
 #include "services/AuthService.h"
 #include <stdexcept>
+#include "constants/Constants.h"
 #include "repositories/UserRepository.h"
 
 namespace AuthService {
@@ -7,7 +8,7 @@ namespace AuthService {
 // Учебный «хэш»: в тестовых данных пароли хранятся как hash_<пароль>
 // (например, у ivanov passwordHash = 'hash_1', значит пароль — 1).
 std::string hashPassword(const std::string& password) {
-    return "hash_" + password;
+    return PASSWORD_PREFIX + password;
 }
 
 std::optional<User> login(const std::string& login, const std::string& password) {
@@ -20,7 +21,8 @@ User registerUser(const std::string& login, const std::string& password, int rol
                   const std::string& fullName, const std::string& phone) {
     if (role != ROLE_CLIENT && role != ROLE_ADMIN) throw std::runtime_error("Неизвестная роль");
     if (login.empty()) throw std::runtime_error("Логин не может быть пустым");
-    if (password.size() < 4) throw std::runtime_error("Пароль должен быть не короче 4 символов");
+    if (password.size() < MIN_PASSWORD_LENGTH)
+        throw std::runtime_error("Пароль должен быть не короче " + std::to_string(MIN_PASSWORD_LENGTH) + " символов");
     if (fullName.empty()) throw std::runtime_error("ФИО не может быть пустым");
     if (UserRepository::getByLogin(login)) throw std::runtime_error("Такой логин уже занят");
 

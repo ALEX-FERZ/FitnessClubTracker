@@ -1,9 +1,6 @@
 #pragma once
 #include <string>
-
-// role: 0 - клиент, 1 - администратор
-const int ROLE_CLIENT = 0;
-const int ROLE_ADMIN = 1;
+#include "constants/Constants.h"
 
 struct User {
     int id;
